@@ -12,6 +12,7 @@ import pandas as pd
 import sys
 import itertools
 import math
+import matplotlib.pyplot as plt
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import RandomizedSearchCV, GroupKFold
@@ -25,7 +26,7 @@ import pickle
 
 # Implementing My ANN
 
-# In[18]:
+# In[14]:
 
 
 def sigmoid(x):
@@ -321,8 +322,12 @@ class ANN(BaseEstimator, ClassifierMixin):
                 epoch at which early stopping occured
             errs: list
                 training errors at each epoch
+            errs_norm: list
+                normalized training errors at each epoch
             val_errs: list, only if xval and yval not None
                 validation errors at each epoch
+            val_errs_norm: list, only if xval and yval not None
+                normalized validation errors at each epoch
         """
         def create_layer(i, j):
             """Creates a layer of random weights between -0.05 and 0.05 with specified dimensions i x j
@@ -377,8 +382,9 @@ class ANN(BaseEstimator, ClassifierMixin):
             val = True
             y_hats_val = self.predict(xval)
             err_val = get_error(y_hats_val, yval)
-            self.errs_val = [err_val/y_hats_val.shape[0]]
-
+            self.errs_val_norm = [err_val/y_hats_val.shape[0]]
+            self.errs_val = [err_val]
+            
         if(not self.quiet):
             print("========Training Error", str(err))
             print("========Training Accuracy", str(np.mean((y_hats > threshold) == y_tr)))
@@ -388,7 +394,8 @@ class ANN(BaseEstimator, ClassifierMixin):
 
         self.min_err = err/y_hats.shape[0]
         self.best_epoch = 0
-        self.errs = [err/y_hats.shape[0]]
+        self.errs_norm = [err/y_hats.shape[0]]
+        self.errs = [err]
 
         prev_err = err
         no_change_count = 0
@@ -545,12 +552,14 @@ class ANN(BaseEstimator, ClassifierMixin):
 
           y_hats = self.predict(X_tr)
           err = get_error(y_hats, y_tr)
-          self.errs.append(err/y_hats.shape[0])
+          self.errs_norm.append(err/y_hats.shape[0])
+          self.errs.append(err)
 
           if(val):
             y_hats_val = self.predict(xval)
             err_val = get_error(y_hats_val, yval)
-            self.errs_val.append(err_val/y_hats_val.shape[0])
+            self.errs_val_norm.append(err_val/y_hats_val.shape[0])
+            self.errs_val.append(err_val)
 
           if(err/y_hats.shape[0] < self.min_err):
             self.min_err = err/y_hats.shape[0]
@@ -570,7 +579,7 @@ class ANN(BaseEstimator, ClassifierMixin):
             no_change_count = 0
 
           self.stop_epoch = epoch
-          self.stop_err = err/y_hats.shape[0]
+          self.stop_err = err
 
           if(no_change_count == self.n_epoch_no_change):
           #Early stopping when consecutive epochs of subthreshold improvement in error reaches n_epoch_no_change
@@ -592,7 +601,7 @@ class ANN(BaseEstimator, ClassifierMixin):
 
 # My ANN on Disjunction of 5 Booleans
 
-# In[18]:
+# In[3]:
 
 
 #Generate combinations of possible inputs
@@ -619,7 +628,7 @@ ann.pred
 
 # Importing Steinmetz Data and K-Fold splits
 
-# In[19]:
+# In[4]:
 
 
 df_tr = np.array(pd.read_csv("data_transformed_train.csv", index_col = 0))
@@ -630,7 +639,7 @@ y_train = df_tr[:,20].reshape((X_train.shape[0],1))
 print(X_train.shape, y_train.shape)
 
 
-# In[20]:
+# In[5]:
 
 
 df_te = np.array(pd.read_csv("data_transformed_test.csv", index_col = 0))
@@ -642,7 +651,7 @@ print(X_test.shape, y_test.shape)
 
 # Tuning My ANN, sklearn MLPC, and SVM on Steinmetz Data
 
-# In[21]:
+# In[6]:
 
 
 def inv_squared_diff(y_true, y_pred):
@@ -735,28 +744,28 @@ for i in range(n_iter):
     #Tune each model n_iter times using same folds as C5.0 CV.
     #Each fold is scaled before use
     #Initialize models differently each time but keep randomly sampled params constant
-  print("======================")
-  print("Iteration", str(i + 1))
-  group_kfold = GroupKFold(n_splits=10)
-  steps = [('scaler', StandardScaler(with_mean = False)), 
-           ('my_ann', ANN(n_input = 20, epochs = max_epochs, seed = 123 + i, quiet = True))]
-  steps_sk = [('scaler', StandardScaler(with_mean = False)), 
-           ('mlpc', MLPClassifier(solver = 'sgd', random_state = 123 + i, max_iter = max_epochs))]
-  steps_svm = [('scaler', StandardScaler(with_mean = False)), 
-           ('svc', svm.SVC(probability = True, random_state = 123 + i))]
-  pipeline = Pipeline(steps)
-  pipeline_sk = Pipeline(steps_sk)
-  pipeline_svm = Pipeline(steps_svm)
+    print("======================")
+    print("Iteration", str(i + 1))
+    group_kfold = GroupKFold(n_splits=10)
+    steps = [('scaler', StandardScaler(with_mean = False)), 
+             ('my_ann', ANN(n_input = 20, epochs = max_epochs, seed = 123 + i, quiet = True))]
+    steps_sk = [('scaler', StandardScaler(with_mean = False)), 
+              ('mlpc', MLPClassifier(solver = 'sgd', random_state = 123 + i, max_iter = max_epochs))]
+    steps_svm = [('scaler', StandardScaler(with_mean = False)), 
+              ('svc', svm.SVC(probability = True, random_state = 123 + i))]
+    pipeline = Pipeline(steps)
+    pipeline_sk = Pipeline(steps_sk)
+    pipeline_svm = Pipeline(steps_svm)
 
-  myAnnCV = RandomizedSearchCV(pipeline, params, random_state = 123, return_train_score = True, cv = group_kfold, n_jobs = 2, verbose = 1)
-  skAnnCV = RandomizedSearchCV(pipeline_sk, params_sk, random_state = 123, return_train_score = True, cv = group_kfold, n_jobs = 2, scoring = scorer, verbose = 1)
-  #SVM was tuned separately for time using same protocol with some mistakes (could not rerun for time)
-  #svmCV = RandomizedSearchCV(pipeline_svm, params_svm, random_state = 123, return_train_score = True, cv = group_kfold, n_jobs = 2, scoring = scorer, verbose = 1)
-  
-  searches.append(myAnnCV.fit(X_train, y_train, groups = splits.iloc[:,i].tolist()))
-  searches_sk.append(skAnnCV.fit(X_train, np.ravel(y_train), groups = splits.iloc[:,i].tolist()))
-  #searches_svm.append(svmCV.fit(X_train, np.ravel(y_train), groups = splits.iloc[:,i].tolist()))
-    
+    myAnnCV = RandomizedSearchCV(pipeline, params, random_state = 123, return_train_score = True, cv = group_kfold, n_jobs = 2, verbose = 1)
+    skAnnCV = RandomizedSearchCV(pipeline_sk, params_sk, random_state = 123, return_train_score = True, cv = group_kfold, n_jobs = 2, scoring = scorer, verbose = 1)
+    #SVM was tuned separately for time using same protocol with some mistakes (could not rerun for time)
+    #svmCV = RandomizedSearchCV(pipeline_svm, params_svm, random_state = 123, return_train_score = True, cv = group_kfold, n_jobs = 2, scoring = scorer, verbose = 1)
+
+    searches.append(myAnnCV.fit(X_train, y_train, groups = splits.iloc[:,i].tolist()))
+    searches_sk.append(skAnnCV.fit(X_train, np.ravel(y_train), groups = splits.iloc[:,i].tolist()))
+    #searches_svm.append(svmCV.fit(X_train, np.ravel(y_train), groups = splits.iloc[:,i].tolist()))
+
 print("======================")
 print("====Done====")
 
@@ -765,13 +774,13 @@ save_object(searches_sk, 'searches_sk.pkl')
 #save_object(searches_svm, 'searches_svm.pkl')
 
 
-# In[31]:
+# In[9]:
 
 
 #searches_svm = read_object('searches_svm')
 
 
-# In[23]:
+# In[10]:
 
 
 print('My Ann')
@@ -780,7 +789,7 @@ print(searches[1].best_params_)
 print(searches[2].best_params_)
 
 
-# In[87]:
+# In[11]:
 
 
 print('MLPC')
@@ -790,7 +799,7 @@ print(searches_sk[2].best_params_)
 #-pd.concat([pd.DataFrame(searches_sk[i].cv_results_).iloc[searches_sk[i].best_index_,:] for i in range(3)], axis = 1).loc['mean_test_score',:] 
 
 
-# In[23]:
+# In[12]:
 
 
 print('SVM')
@@ -801,8 +810,25 @@ print(searches_svm[2].best_params_)
 
 # Training with best parameters
 
-# In[24]:
+# In[13]:
 
+
+def get_classes(y_prob, threshold = .5):
+    """Converts probability of positive class to binary 0,1 labels given a threshold
+    
+    Parameters
+    ----------
+    y_prob : numpy.array
+        The predicted positive class probabilities
+    threshold : float (default .5)
+        The threshold above which a positive instance is predicted
+
+    Returns
+    -------
+    numpy.array
+        The binary class labels
+    """
+    return(np.array([1 if i > threshold else 0 for i in y_prob]))
 
 def calc_metrics(y_true, y_pred):
     """Computes confusion matrix, accuracy, precision, recall, specificity, f1-score, and AUC for true and predicted labels
@@ -850,11 +876,8 @@ def calc_metrics(y_true, y_pred):
     return((cm, {'Accuracy': [acc], 'AUC': [auc], 'Precision': [precision], 'Recall': [recall], 'Specificity': [specificity], 'F1-score': [f1]}))
 
 
-# In[32]:
+# In[15]:
 
-
-def get_classes(y_prob, threshold = .5):
-    return(np.array([1 if i > threshold else 0 for i in y_prob]))
 
 model_errs_tr = list()
 model_errs_val = list()
@@ -947,9 +970,9 @@ for i in range(n_iter):
         mlpc.fit(X_train[tr_index,:], np.ravel(y_train[tr_index,:]))
         svc.fit(X_train[tr_index,:], np.ravel(y_train[tr_index,:]))
         
-        #Errors/epoch for my ann only
-        model_errs_tr.append(ann[-1].errs)
-        model_errs_val.append(ann[-1].errs_val)
+        #Normalized errors/epoch for my ANN
+        model_errs_tr.append(ann[-1].errs_norm)
+        model_errs_val.append(ann[-1].errs_val_norm)
         model_epoch.append(np.arange(0, ann[-1].stop_epoch + 2).tolist())
            
         #Erros/fold for my ANN
@@ -972,7 +995,7 @@ print("======================")
 print("====Done====")
 
 
-# In[33]:
+# In[16]:
 
 
 #Get mean and sd of each testing metric (over 10 models) and append those of C5.0
@@ -994,7 +1017,7 @@ scores_agg = pd.concat([scores_myanns_stats_all,
                         scores_svms_stats_all,
                         C5_res], axis = 1)
 
-#Get errors of each model and erros/epoch of my ANN
+#Get errors of each model and normalized erros/epoch of my ANN
 err_per_epoch = pd.DataFrame({'epoch': list(itertools.chain(*model_epoch)), 'train_error': list(itertools.chain(*model_errs_tr)), 'val_error': list(itertools.chain(*model_errs_val))})
 errs_myann = pd.DataFrame({'train_error': errs_tr_myann, 'val_error': errs_val_myann})
 errs_mlpc = pd.DataFrame({'train_error': errs_tr_mlpc, 'val_error': errs_val_mlpc})
@@ -1008,21 +1031,22 @@ errs_svm_agg = errs_svm.agg([np.nanmean, np.nanstd])
 errs_agg = pd.concat([errs_myann_agg.add_suffix('_myann'), errs_mlpc_agg.add_suffix('_mlpc'), errs_svm_agg.add_suffix('_svm')], axis = 1).T
 
 
-# In[34]:
+# In[17]:
 
 
 scores_agg
 
 
-# In[70]:
+# In[18]:
 
 
 err_per_epoch_agg
 
 
-# In[85]:
+# In[19]:
 
 
+#Plot of normalized error per epoch
 plt.figure()
 plt.plot(err_per_epoch_agg.train_error.nanmean, color = 'blue', label = "Training mean")
 plt.plot(err_per_epoch_agg.train_error.nanmean + err_per_epoch_agg.train_error.nanstd, color = 'pink', label = "Training sd")
@@ -1033,8 +1057,14 @@ plt.plot(err_per_epoch_agg.val_error.nanmean - err_per_epoch_agg.val_error.nanst
 plt.legend()
 
 
-# In[71]:
+# In[20]:
 
 
 errs_agg
+
+
+# In[ ]:
+
+
+
 
