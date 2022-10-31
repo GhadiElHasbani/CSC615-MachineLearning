@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# Importing dependencies
+
+# In[1]:
+
+
 # Dependencies
 import numpy as np
 import pandas as pd
@@ -14,6 +22,12 @@ from sklearn.neural_network import MLPClassifier
 from sklearn import svm
 import pickle
 
+
+# Implementing My ANN
+
+# In[18]:
+
+
 def sigmoid(x):
         """Computes sigmoid function
 
@@ -27,7 +41,7 @@ def sigmoid(x):
         numpy.array
             Result of sigmoid function for each element of x
         """
-    return(1/(1+np.exp(-x)))
+        return(1/(1+np.exp(-x)))
 
 def relu(x):
         """Computes relu function
@@ -42,7 +56,7 @@ def relu(x):
         numpy.array
             Result of relu function for each element of x
         """
-    return(np.clip(x, a_min = 0, a_max = None))
+        return(np.clip(x, a_min = 0, a_max = None))
 
 class ANN(BaseEstimator, ClassifierMixin):
     """
@@ -89,7 +103,8 @@ class ANN(BaseEstimator, ClassifierMixin):
     score(y_true, y_pred)
         Computes negative of half the sum of squared differences between true and predicted labels
     """
-  def __init__(self, 
+    
+    def __init__(self, 
                n_input, 
                n_hidden = (5,),
                seed = round(np.random.uniform()*1000), 
@@ -103,473 +118,481 @@ class ANN(BaseEstimator, ClassifierMixin):
                epochs = 5,
                shuffle = True,
                quiet = False):
-    """Initializes an ANN class object
-
-    Parameters
-    ----------
-    n_input : int
-        a integer to indicate number of input units (features)
-    n_hidden : tuple, optional
-        a tuple containing a maximum of 2 integers indicatng size of (number of units in) each hidden layer (default (5,))
-    seed : int, optional
-        the random state to use for initializing weights and data shuffle (default random)
-    act_h : str, optional
-        the activation function to use, on of 'sigmoid' or 'relu' (default 'relu')
-    n_output : int, optional
-        a integer to indicate number of output units (default 1)
-    learning_rate : float, optional
-        a real number between 0 and 1 specifyng the learning rate (default 0.05) 
-    momentum : float, optional
-        a real number between 0 and 1 specifyng the momentum (default 0.9)
-    tol : float, optional
-        a real number specifying a threshold for improvement in error under which early stopping occurs (default 1e-4)
-    n_epoch_no_change : int, optional
-        an integer specifying the number of epochs in a row needed where improvement in error is below tol for early stopping to occure (default 10)
-    batch_size : int, optional
-        the batch size for stochastic gradient descent (default 1)
-    epochs : int, optional
-        the number of times each data sample is used for training (default 5)
-    shuffle : bool, optional
-        whether to shuffle samples before training (default True)
-    quiet : bool, optional
-        whether to output updates during training (default False)
-
-    Returns
-    -------
-    ANN class object
-        an ANN class object of specified parameters (all are saved as object attributes)
-        model contains momentum with nesterov option and minibatch stochastic gradient descent
-        model does not contain bias or L2 regularization
-        
-        Additional attributes:
-        n_hlayer : int
-            the number of hidden layers based on length of n_hidden
-    """
-
-    self.n_input = n_input
-    self.n_hidden = n_hidden
-
-    if(len(n_hidden) == 1):
-      self.n_hlayer = 1
-    else:
-      self.n_hlayer = 2
-      
-    self.n_output = n_output
-    self.seed = seed
-    self.act_h = act_h
-    self.learning_rate = learning_rate
-    self.momentum = momentum
-    self.tol = tol
-    self.n_epoch_no_change = n_epoch_no_change
-    self.batch_size = batch_size
-    self.epochs = epochs
-    self.shuffle = shuffle
-    self.quiet = quiet
-
-  def predict(self, X, y = None):
-    """Predicts given samples using ANN class object
-
-    Parameters
-    ----------
-    X : numpy.array
-        The samples to predict in a 2D array of size n_samples x n_inputs
-    y : numpy.array, optional
-        The true labels in a 2D array of size n_samples x n_outputs (default None)
-
-    Returns
-    -------
-    numpy.array
-        Predicted labels in a 2D array of size n_samples x n_outputs
-    """
-
-    if(X.shape[1] != self.n_input):
-      sys.exit("Input data is of wrong dimensions.")
-
-    else:
-      if(self.act_h == 'relu'):
-
-        if(self.n_hlayer == 1):
-          return(sigmoid(np.matmul(relu(np.matmul(X, self.hlayer_w)), self.olayer_w)))
-        else:
-          return(sigmoid(np.matmul(relu(np.matmul(relu(np.matmul(X, self.hlayer_w)), self.hlayer_w2)), self.olayer_w)))
-
-      else:
-
-        if(self.n_hlayer == 1):
-          return(sigmoid(np.matmul(sigmoid(np.matmul(X, self.hlayer_w)), self.olayer_w)))
-        else:
-          return(sigmoid(np.matmul(sigmoid(np.matmul(sigmoid(np.matmul(X, self.hlayer_w)), self.hlayer_w2)), self.olayer_w)))
-  
-  def eval(self, X):
-    """Evaluates given samples using ANN class object
-
-    Parameters
-    ----------
-    X : numpy.array
-        The samples to evaluate in a 2D array of size n_samples x n_inputs
-
-    Returns
-    -------
-    numpy.array
-        Output of first hidden layer in a 2D array of size n_hidden[0] x n_samples
-    numpy.array
-        Output of second hidden layer in a 2D array of size n_hidden[1] x n_samples, 1 if no second layer exists
-    numpy.array
-        Predicted probabilities in a 2D array of size n_samples x n_outputs
-    """
-
-    if(X.shape[1] != self.n_input):
-      sys.exit("Input data is of wrong dimensions.")
-
-    else:
-      
-      if(self.act_h == 'relu'):
-
-        if(self.n_hlayer == 1):
-          h_out = np.matmul(X, self.hlayer_w).reshape((self.n_hidden[0], X.shape[0]))
-          h_out2 = 1
-          y_prob = sigmoid(np.matmul(relu(h_out.T), self.olayer_w))
-
-        else:
-          h_out = np.matmul(X, self.hlayer_w).reshape((self.n_hidden[0], X.shape[0]))
-          h_out2 = np.matmul(relu(h_out.T), self.hlayer_w2).reshape((self.n_hidden[1], X.shape[0]))
-          y_prob =  sigmoid(np.matmul(relu(h_out2.T), self.olayer_w))
-      else:
-
-        if(self.n_hlayer == 1):
-          h_out = sigmoid(np.matmul(X, self.hlayer_w)).reshape((self.n_hidden[0], X.shape[0]))
-          h_out2 = 1
-          y_prob = sigmoid(np.matmul(h_out.T, self.olayer_w))
-
-        else:
-          h_out = sigmoid(np.matmul(X, self.hlayer_w)).reshape((self.n_hidden[0], X.shape[0]))
-          h_out2 = sigmoid(np.matmul(h_out.T, self.hlayer_w2)).reshape((self.n_hidden[1], X.shape[0]))
-          y_prob = sigmoid(np.matmul(h_out2.T, self.olayer_w))
-
-      return(h_out, h_out2, y_prob)
-
-  def score(self, y_true, y_pred):
-    """Computes negative of half the sum of squared differences between true and predicted labels
-
-    Parameters
-    ----------
-    y_true : numpy.array
-        The true labels in a 2D array of size n_samples x 1
-    y_pred : numpy.array
-        The predicted labels in a 2D array of size n_samples x 1  
-
-    Returns
-    -------
-    float
-        negative of half the sum of squared differences
-    """
-    return(-(0.5*np.sum((y_true - y_pred)**2)))
-  
-  def fit(self, X_tr, y_tr = None, threshold = .5, nesterov = True, xval = None, yval = None):
-    """
-    Trains an ANN class object model using training data
-
-    Parameters
-    ----------
-    X_tr : numpy.array
-        The training samples in a 2D array of size n_samples x n_inputs
-    y_tr : numpy.array
-        The true training labels in a 2D array of size n_samples x 1 (default None)
-    threshold : float, optional
-        the threshold used for binary output, only used to compute accuracy (default .5)
-    nesterov : bool, optional
-        whether to use Nesterov's momentum or not (default True)
-    xval : numpy.array, optional
-        The validation samples in a 2D array of size n_samples x n_inputs, used to compute and save error at each epoch (default None)
-    yval : numpy.array, optional
-        The validation true labels in a 2D array of size n_samples x 1, used to compute and save error at each epoch (default None)
-        
-    Returns
-    -------
-    None
-        Additional attributes:
-        hlayer_w : numpy.array
-            weights for the first hidden layer in a 2D array of size n_input x n_hidden[0]
-        hlayer_w2 : numpy.array or int
-            weights for the second hidden layer in a 2D array of size n_hidden[0] x n_hidden[1]
-        olayer_w : numpy.array
-            weights for the output layer in a 2D array of size n_hidden[0 or 1] x n_output
-        pred : numpy.array
-            final predicted probabilities in a 2D array of size n_samples x n_output
-        min_err : float
-            minimum normalized error
-        best_epoch: int
-            epoch at which minimum normalized error occured
-        stop_err : float
-            error at stopping epoch
-        stop_epoch: int
-            epoch at which early stopping occured
-        errs: list
-            training errors at each epoch
-        val_errs: list, only if xval and yval not None
-            validation errors at each epoch
-    """
-    def create_layer(i, j):
-        """Creates a layer of random weights between -0.05 and 0.05 with specified dimensions i x j
+        """Initializes an ANN class object
 
             Parameters
             ----------
-            i : int
-                Number of rows
-            j : int
-                Number of columns
-            
+            n_input : int
+                a integer to indicate number of input units (features)
+            n_hidden : tuple, optional
+                a tuple containing a maximum of 2 integers indicatng size of (number of units in) each hidden layer (default (5,))
+            seed : int, optional
+                the random state to use for initializing weights and data shuffle (default random)
+            act_h : str, optional
+                the activation function to use, on of 'sigmoid' or 'relu' (default 'relu')
+            n_output : int, optional
+                a integer to indicate number of output units (default 1)
+            learning_rate : float, optional
+                a real number between 0 and 1 specifyng the learning rate (default 0.05) 
+            momentum : float, optional
+                a real number between 0 and 1 specifyng the momentum (default 0.9)
+            tol : float, optional
+                a real number specifying a threshold for improvement in error under which early stopping occurs (default 1e-4)
+            n_epoch_no_change : int, optional
+                an integer specifying the number of epochs in a row needed where improvement in error is below tol for early stopping to occure (default 10)
+            batch_size : int, optional
+                the batch size for stochastic gradient descent (default 1)
+            epochs : int, optional
+                the number of times each data sample is used for training (default 5)
+            shuffle : bool, optional
+                whether to shuffle samples before training (default True)
+            quiet : bool, optional
+                whether to output updates during training (default False)
+
             Returns
             -------
-            numpy.array
-                2D array of random weights of size i x j 
-        """
-      return((np.random.rand(i, j) - 0.5)/10)
+            ANN class object
+                an ANN class object of specified parameters (all are saved as object attributes)
+                model contains momentum with nesterov option and minibatch stochastic gradient descent
+                model does not contain bias or L2 regularization
 
-    def get_error(y_hat, y):
-        """Computes half of sum of squared differences between true and predicted labels
-
-            Parameters
-            ----------
-            y_hat : numpy.array
-                The predicted labels in a 2D array of size n_samples x 1
-            y : numpy.array
-                The true labels in a 2D array of size n_samples x 1
-            
-            Returns
-            -------
-            float
-                half of sum of squared differences
+                Additional attributes:
+                n_hlayer : int
+                    the number of hidden layers based on length of n_hidden
             """
-      return(0.5*np.sum((y - y_hat)**2))
 
-    np.random.seed(self.seed)
+        self.n_input = n_input
+        self.n_hidden = n_hidden
 
-    if(self.n_hlayer == 1):
-      self.hlayer_w = create_layer(self.n_input, self.n_hidden[0])
-      self.olayer_w = create_layer(self.n_hidden[0], self.n_output)
+        if(len(n_hidden) == 1):
+            self.n_hlayer = 1
+        else:
+            self.n_hlayer = 2
 
-    else:
-      self.hlayer_w = create_layer(self.n_input, self.n_hidden[0])
-      self.hlayer_w2 = create_layer(self.n_hidden[0], self.n_hidden[1])
-      self.olayer_w = create_layer(self.n_hidden[1], self.n_output)
+        self.n_output = n_output
+        self.seed = seed
+        self.act_h = act_h
+        self.learning_rate = learning_rate
+        self.momentum = momentum
+        self.tol = tol
+        self.n_epoch_no_change = n_epoch_no_change
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.shuffle = shuffle
+        self.quiet = quiet
 
-    y_hats = self.predict(X_tr)
-    err = get_error(y_hats, y_tr)
-    val = False
-    
-    if((xval is not None) and (yval is not None)):
-      val = True
-      y_hats_val = self.predict(xval)
-      err_val = get_error(y_hats_val, yval)
-      self.errs_val = [err_val/y_hats_val.shape[0]]
-    
-    if(not self.quiet):
-      print("========Training Error", str(err))
-      print("========Training Accuracy", str(np.mean((y_hats > threshold) == y_tr)))
-      if(val):
-        print("========Validation Error", str(err_val))
-        print("========Validation Accuracy", str(np.mean((y_hats_val > threshold) == yval)))
+    def predict(self, X, y = None):
+        """Predicts given samples using ANN class object
 
-    self.min_err = err/y_hats.shape[0]
-    self.best_epoch = 0
-    self.errs = [err/y_hats.shape[0]]
-    
-    prev_err = err
-    no_change_count = 0
+        Parameters
+        ----------
+        X : numpy.array
+            The samples to predict in a 2D array of size n_samples x n_inputs
+        y : numpy.array, optional
+            The true labels in a 2D array of size n_samples x n_outputs (default None)
 
-    for epoch in range(self.epochs):
-      df = np.concatenate((X_tr, y_tr), axis = 1)
+        Returns
+        -------
+        numpy.array
+            Predicted labels in a 2D array of size n_samples x n_outputs
+        """
 
-      if(self.shuffle):
-      #Shuffle samples at each epoch
-        np.random.seed(self.seed + epoch)
-        np.random.shuffle(df)
+        if(X.shape[1] != self.n_input):
+              sys.exit("Input data is of wrong dimensions.")
 
-      if(not self.quiet):
-        print("====================================")
-        print("Epoch", str(epoch + 1))
+        else:
+            if(self.act_h == 'relu'):
 
-      prev_deltahw = 0
-      prev_deltahw2 = 0
-      prev_deltaow = 0
-
-      if(self.batch_size > 1):
-
-        for batch in np.array_split(df, df.shape[0]//self.batch_size):
-          X_train = batch[:,0:self.n_input]
-          y_train = batch[:,self.n_input].reshape((batch.shape[0], 1))
-
-          if(nesterov):
-            self.olayer_w += self.momentum*prev_deltaow
-            self.hlayer_w += self.momentum*prev_deltahw
-
-            if(self.n_hlayer > 1):
-              self.hlayer_w2 += self.momentum*prev_deltahw2
-
-          h_out, h_out2, y_hat = self.eval(X_train)
-          err_o = y_hat*(1 - y_hat)*(y_train - y_hat)
-
-          if(self.act_h == 'relu'):
-
-            if(self.n_hlayer == 1):
-              err_h = (h_out > 0).astype(int) * self.olayer_w * err_o.T
-              deltaow = self.learning_rate*(relu(h_out)@err_o)
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
+                    if(self.n_hlayer == 1):
+                          return(sigmoid(np.matmul(relu(np.matmul(X, self.hlayer_w)), self.olayer_w)))
+                    else:
+                          return(sigmoid(np.matmul(relu(np.matmul(relu(np.matmul(X, self.hlayer_w)), self.hlayer_w2)), self.olayer_w)))
 
             else:
-              err_h2 = (h_out2 > 0).astype(int) * self.olayer_w * err_o.T
-              err_h = (h_out > 0).astype(int) * (self.hlayer_w2 @ err_h2)
-              deltaow = self.learning_rate*(relu(h_out2)@err_o)
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
-              deltahw2 = (self.learning_rate*(relu(h_out)@err_h2.T))
-              self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
 
-              if(nesterov):
-                self.hlayer_w2 -= self.momentum*prev_deltahw2
+                    if(self.n_hlayer == 1):
+                          return(sigmoid(np.matmul(sigmoid(np.matmul(X, self.hlayer_w)), self.olayer_w)))
+                    else:
+                          return(sigmoid(np.matmul(sigmoid(np.matmul(sigmoid(np.matmul(X, self.hlayer_w)), self.hlayer_w2)), self.olayer_w)))
 
-              prev_deltahw2 = deltahw2
+    def eval(self, X):
+        """Evaluates given samples using ANN class object
 
-          else:
+        Parameters
+        ----------
+        X : numpy.array
+            The samples to evaluate in a 2D array of size n_samples x n_inputs
 
-            if(self.n_hlayer == 1):
-              err_h = h_out * (1 - h_out) * self.olayer_w * err_o.T
-              deltaow = self.learning_rate*(h_out@err_o)
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
+        Returns
+        -------
+        numpy.array
+            Output of first hidden layer in a 2D array of size n_hidden[0] x n_samples
+        numpy.array
+            Output of second hidden layer in a 2D array of size n_hidden[1] x n_samples, 1 if no second layer exists
+        numpy.array
+            Predicted probabilities in a 2D array of size n_samples x n_outputs
+        """
 
+        if(X.shape[1] != self.n_input):
+            sys.exit("Input data is of wrong dimensions.")
+
+        else:
+
+            if(self.act_h == 'relu'):
+
+                    if(self.n_hlayer == 1):
+                        h_out = np.matmul(X, self.hlayer_w).reshape((self.n_hidden[0], X.shape[0]))
+                        h_out2 = 1
+                        y_prob = sigmoid(np.matmul(relu(h_out.T), self.olayer_w))
+
+                    else:
+                        h_out = np.matmul(X, self.hlayer_w).reshape((self.n_hidden[0], X.shape[0]))
+                        h_out2 = np.matmul(relu(h_out.T), self.hlayer_w2).reshape((self.n_hidden[1], X.shape[0]))
+                        y_prob =  sigmoid(np.matmul(relu(h_out2.T), self.olayer_w))
             else:
-              err_h2 = h_out2 * (1 - h_out2) * self.olayer_w * err_o.T
-              err_h = h_out * (1 - h_out) * (self.hlayer_w2 @ err_h2)
-              deltaow = self.learning_rate*(h_out2@err_o)
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
-              deltahw2 = (self.learning_rate*(h_out@err_h2.T))
-              self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
 
-              if(nesterov):
-                self.hlayer_w2 -= self.momentum*prev_deltahw2
+                    if(self.n_hlayer == 1):
+                        h_out = sigmoid(np.matmul(X, self.hlayer_w)).reshape((self.n_hidden[0], X.shape[0]))
+                        h_out2 = 1
+                        y_prob = sigmoid(np.matmul(h_out.T, self.olayer_w))
 
-              prev_deltahw2 = deltahw2
+                    else:
+                        h_out = sigmoid(np.matmul(X, self.hlayer_w)).reshape((self.n_hidden[0], X.shape[0]))
+                        h_out2 = sigmoid(np.matmul(h_out.T, self.hlayer_w2)).reshape((self.n_hidden[1], X.shape[0]))
+                        y_prob = sigmoid(np.matmul(h_out2.T, self.olayer_w))
 
-          deltahw = (self.learning_rate*err_h@X_train).T
-          self.hlayer_w += deltahw + self.momentum*prev_deltahw
-          
-          if(nesterov):
-            self.hlayer_w -= self.momentum*prev_deltahw
-            self.olayer_w -= self.momentum*prev_deltaow
+        return(h_out, h_out2, y_prob)
 
-          prev_deltaow = deltaow
-          prev_deltahw = deltahw
+    def score(self, y_true, y_pred):
+        """Computes negative of half the sum of squared differences between true and predicted labels
 
-      else:
-        #slower implementation than batch_size > 1
-        X_train = df[:,0:self.n_input]
-        y_train = df[:,self.n_input].reshape((df.shape[0], 1))
+        Parameters
+        ----------
+        y_true : numpy.array
+            The true labels in a 2D array of size n_samples x 1
+        y_pred : numpy.array
+            The predicted labels in a 2D array of size n_samples x 1  
 
-        for n in range(X_train.shape[0]):
-          instance = X_train[n,:].reshape((1, self.n_input))
-
-          if(nesterov):
-            self.olayer_w += self.momentum*prev_deltaow
-            self.hlayer_w += self.momentum*prev_deltahw
-
-            if(self.n_hlayer > 1):
-              self.hlayer_w2 += self.momentum*prev_deltahw2
-
-          h_out, h_out2, y_hat = self.eval(instance)
-          err_o = y_hat*(1 - y_hat)*(y_train[n,:] - y_hat)
-
-          if(self.act_h == 'relu'):
-
-            if(self.n_hlayer == 1):
-              err_h = (h_out > 0).astype(int) * self.olayer_w * err_o
-              deltaow = self.learning_rate*err_o*relu(h_out)
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
-
-            else:
-              err_h2 = (h_out2 > 0).astype(int) * self.olayer_w * err_o
-              err_h = (h_out > 0).astype(int) * (self.hlayer_w2 @ err_h2)
-              deltaow = self.learning_rate*err_o*relu(h_out2)
-              deltahw2 = (self.learning_rate*err_h2*relu(h_out).T).T
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
-              self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
-
-              if(nesterov):
-                self.hlayer_w2 -= self.momentum*prev_deltahw2
-
-              prev_deltahw2 = deltahw2
-
-          else:
-
-            if(self.n_hlayer == 1):
-              err_h = h_out * (1 - h_out) * self.olayer_w * err_o
-              deltaow = self.learning_rate*err_o*h_out
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
-
-            else:
-              err_h2 = h_out2 * (1 - h_out2) * self.olayer_w * err_o
-              err_h = h_out * (1 - h_out) * (self.hlayer_w2 @ err_h2)
-              deltaow = self.learning_rate*err_o*h_out2
-              self.olayer_w += deltaow + self.momentum*prev_deltaow
-              deltahw2 = (self.learning_rate*err_h2*h_out.T).T
-              self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
-
-              if(nesterov):
-                self.hlayer_w2 -= self.momentum*prev_deltahw2
-
-              prev_deltahw2 = deltahw2
+        Returns
+        -------
+        float
+            negative of half the sum of squared differences
+        """
+        return(-(0.5*np.sum((y_true - y_pred)**2)))
   
-          deltahw = (self.learning_rate*err_h*instance).T
-          self.hlayer_w += deltahw + self.momentum*prev_deltahw
+    def fit(self, X_tr, y_tr = None, threshold = .5, nesterov = True, xval = None, yval = None):
+        """
+        Trains an ANN class object model using training data
 
-          if(nesterov):
-            self.hlayer_w -= self.momentum*prev_deltahw
-            self.olayer_w -= self.momentum*prev_deltaow
+        Parameters
+        ----------
+        X_tr : numpy.array
+            The training samples in a 2D array of size n_samples x n_inputs
+        y_tr : numpy.array
+            The true training labels in a 2D array of size n_samples x 1 (default None)
+        threshold : float, optional
+            the threshold used for binary output, only used to compute accuracy (default .5)
+        nesterov : bool, optional
+            whether to use Nesterov's momentum or not (default True)
+        xval : numpy.array, optional
+            The validation samples in a 2D array of size n_samples x n_inputs, used to compute and save error at each epoch (default None)
+        yval : numpy.array, optional
+            The validation true labels in a 2D array of size n_samples x 1, used to compute and save error at each epoch (default None)
 
-          prev_deltaow = deltaow
-          prev_deltahw = deltahw
+        Returns
+        -------
+        None
+            Additional attributes:
+            hlayer_w : numpy.array
+                weights for the first hidden layer in a 2D array of size n_input x n_hidden[0]
+            hlayer_w2 : numpy.array or int
+                weights for the second hidden layer in a 2D array of size n_hidden[0] x n_hidden[1]
+            olayer_w : numpy.array
+                weights for the output layer in a 2D array of size n_hidden[0 or 1] x n_output
+            pred : numpy.array
+                final predicted probabilities in a 2D array of size n_samples x n_output
+            min_err : float
+                minimum normalized error
+            best_epoch: int
+                epoch at which minimum normalized error occured
+            stop_err : float
+                error at stopping epoch
+            stop_epoch: int
+                epoch at which early stopping occured
+            errs: list
+                training errors at each epoch
+            val_errs: list, only if xval and yval not None
+                validation errors at each epoch
+        """
+        def create_layer(i, j):
+            """Creates a layer of random weights between -0.05 and 0.05 with specified dimensions i x j
 
-      y_hats = self.predict(X_tr)
-      err = get_error(y_hats, y_tr)
-      self.errs.append(err/y_hats.shape[0])
-    
-      if(val):
-        y_hats_val = self.predict(xval)
-        err_val = get_error(y_hats_val, yval)
-        self.errs_val.append(err_val/y_hats_val.shape[0])
-        
-      if(err/y_hats.shape[0] < self.min_err):
-        self.min_err = err/y_hats.shape[0]
-        self.best_epoch = epoch
+                Parameters
+                ----------
+                i : int
+                    Number of rows
+                j : int
+                    Number of columns
 
-      if(not self.quiet):
-        print("========Error", str(err))
-        print("========Accuracy", str(np.mean((y_hats > threshold) == y_tr)))
-        if(val):
-          print("========Validation Error", str(err_val))
-          print("========Validation Accuracy", str(np.mean((y_hats_val > threshold) == yval)))
-      
-      if(prev_err - err < self.tol):
-      #record number of consecutive epochs of subthreshold improvement in error
-        no_change_count += 1
-      else:
-        no_change_count = 0
-        
-      self.stop_epoch = epoch
-      self.stop_err = err/y_hats.shape[0]
-        
-      if(no_change_count == self.n_epoch_no_change):
-      #Early stopping when consecutive epochs of subthreshold improvement in error reaches n_epoch_no_change
+                Returns
+                -------
+                numpy.array
+                    2D array of random weights of size i x j 
+            """
+            return((np.random.rand(i, j) - 0.5)/10)
+
+        def get_error(y_hat, y):
+            """Computes half of sum of squared differences between true and predicted labels
+
+                Parameters
+                ----------
+                y_hat : numpy.array
+                    The predicted labels in a 2D array of size n_samples x 1
+                y : numpy.array
+                    The true labels in a 2D array of size n_samples x 1
+
+                Returns
+                -------
+                float
+                    half of sum of squared differences
+            """
+            return(0.5*np.sum((y - y_hat)**2))
+
+        np.random.seed(self.seed)
+
+        if(self.n_hlayer == 1):
+            self.hlayer_w = create_layer(self.n_input, self.n_hidden[0])
+            self.olayer_w = create_layer(self.n_hidden[0], self.n_output)
+
+        else:
+            self.hlayer_w = create_layer(self.n_input, self.n_hidden[0])
+            self.hlayer_w2 = create_layer(self.n_hidden[0], self.n_hidden[1])
+            self.olayer_w = create_layer(self.n_hidden[1], self.n_output)
+
+        y_hats = self.predict(X_tr)
+        err = get_error(y_hats, y_tr)
+        val = False
+
+        if((xval is not None) and (yval is not None)):
+            val = True
+            y_hats_val = self.predict(xval)
+            err_val = get_error(y_hats_val, yval)
+            self.errs_val = [err_val/y_hats_val.shape[0]]
+
         if(not self.quiet):
-          print("========Early stopping!========")
+            print("========Training Error", str(err))
+            print("========Training Accuracy", str(np.mean((y_hats > threshold) == y_tr)))
+            if(val):
+                print("========Validation Error", str(err_val))
+                print("========Validation Accuracy", str(np.mean((y_hats_val > threshold) == yval)))
 
-        break
+        self.min_err = err/y_hats.shape[0]
+        self.best_epoch = 0
+        self.errs = [err/y_hats.shape[0]]
 
-      prev_err = err
+        prev_err = err
+        no_change_count = 0
 
-    self.pred = y_hats
+        for epoch in range(self.epochs):
+          df = np.concatenate((X_tr, y_tr), axis = 1)
 
-    if(not self.quiet):
-      print("============DONE====================")
+          if(self.shuffle):
+          #Shuffle samples at each epoch
+            np.random.seed(self.seed + epoch)
+            np.random.shuffle(df)
+
+          if(not self.quiet):
+            print("====================================")
+            print("Epoch", str(epoch + 1))
+
+          prev_deltahw = 0
+          prev_deltahw2 = 0
+          prev_deltaow = 0
+
+          if(self.batch_size > 1):
+
+            for batch in np.array_split(df, df.shape[0]//self.batch_size):
+              X_train = batch[:,0:self.n_input]
+              y_train = batch[:,self.n_input].reshape((batch.shape[0], 1))
+
+              if(nesterov):
+                self.olayer_w += self.momentum*prev_deltaow
+                self.hlayer_w += self.momentum*prev_deltahw
+
+                if(self.n_hlayer > 1):
+                  self.hlayer_w2 += self.momentum*prev_deltahw2
+
+              h_out, h_out2, y_hat = self.eval(X_train)
+              err_o = y_hat*(1 - y_hat)*(y_train - y_hat)
+
+              if(self.act_h == 'relu'):
+
+                if(self.n_hlayer == 1):
+                  err_h = (h_out > 0).astype(int) * self.olayer_w * err_o.T
+                  deltaow = self.learning_rate*(relu(h_out)@err_o)
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+
+                else:
+                  err_h2 = (h_out2 > 0).astype(int) * self.olayer_w * err_o.T
+                  err_h = (h_out > 0).astype(int) * (self.hlayer_w2 @ err_h2)
+                  deltaow = self.learning_rate*(relu(h_out2)@err_o)
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+                  deltahw2 = (self.learning_rate*(relu(h_out)@err_h2.T))
+                  self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
+
+                  if(nesterov):
+                    self.hlayer_w2 -= self.momentum*prev_deltahw2
+
+                  prev_deltahw2 = deltahw2
+
+              else:
+
+                if(self.n_hlayer == 1):
+                  err_h = h_out * (1 - h_out) * self.olayer_w * err_o.T
+                  deltaow = self.learning_rate*(h_out@err_o)
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+
+                else:
+                  err_h2 = h_out2 * (1 - h_out2) * self.olayer_w * err_o.T
+                  err_h = h_out * (1 - h_out) * (self.hlayer_w2 @ err_h2)
+                  deltaow = self.learning_rate*(h_out2@err_o)
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+                  deltahw2 = (self.learning_rate*(h_out@err_h2.T))
+                  self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
+
+                  if(nesterov):
+                    self.hlayer_w2 -= self.momentum*prev_deltahw2
+
+                  prev_deltahw2 = deltahw2
+
+              deltahw = (self.learning_rate*err_h@X_train).T
+              self.hlayer_w += deltahw + self.momentum*prev_deltahw
+
+              if(nesterov):
+                self.hlayer_w -= self.momentum*prev_deltahw
+                self.olayer_w -= self.momentum*prev_deltaow
+
+              prev_deltaow = deltaow
+              prev_deltahw = deltahw
+
+          else:
+            #slower implementation than batch_size > 1
+            X_train = df[:,0:self.n_input]
+            y_train = df[:,self.n_input].reshape((df.shape[0], 1))
+
+            for n in range(X_train.shape[0]):
+              instance = X_train[n,:].reshape((1, self.n_input))
+
+              if(nesterov):
+                self.olayer_w += self.momentum*prev_deltaow
+                self.hlayer_w += self.momentum*prev_deltahw
+
+                if(self.n_hlayer > 1):
+                  self.hlayer_w2 += self.momentum*prev_deltahw2
+
+              h_out, h_out2, y_hat = self.eval(instance)
+              err_o = y_hat*(1 - y_hat)*(y_train[n,:] - y_hat)
+
+              if(self.act_h == 'relu'):
+
+                if(self.n_hlayer == 1):
+                  err_h = (h_out > 0).astype(int) * self.olayer_w * err_o
+                  deltaow = self.learning_rate*err_o*relu(h_out)
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+
+                else:
+                  err_h2 = (h_out2 > 0).astype(int) * self.olayer_w * err_o
+                  err_h = (h_out > 0).astype(int) * (self.hlayer_w2 @ err_h2)
+                  deltaow = self.learning_rate*err_o*relu(h_out2)
+                  deltahw2 = (self.learning_rate*err_h2*relu(h_out).T).T
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+                  self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
+
+                  if(nesterov):
+                    self.hlayer_w2 -= self.momentum*prev_deltahw2
+
+                  prev_deltahw2 = deltahw2
+
+              else:
+
+                if(self.n_hlayer == 1):
+                  err_h = h_out * (1 - h_out) * self.olayer_w * err_o
+                  deltaow = self.learning_rate*err_o*h_out
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+
+                else:
+                  err_h2 = h_out2 * (1 - h_out2) * self.olayer_w * err_o
+                  err_h = h_out * (1 - h_out) * (self.hlayer_w2 @ err_h2)
+                  deltaow = self.learning_rate*err_o*h_out2
+                  self.olayer_w += deltaow + self.momentum*prev_deltaow
+                  deltahw2 = (self.learning_rate*err_h2*h_out.T).T
+                  self.hlayer_w2 += deltahw2 + self.momentum*prev_deltahw2
+
+                  if(nesterov):
+                    self.hlayer_w2 -= self.momentum*prev_deltahw2
+
+                  prev_deltahw2 = deltahw2
+
+              deltahw = (self.learning_rate*err_h*instance).T
+              self.hlayer_w += deltahw + self.momentum*prev_deltahw
+
+              if(nesterov):
+                self.hlayer_w -= self.momentum*prev_deltahw
+                self.olayer_w -= self.momentum*prev_deltaow
+
+              prev_deltaow = deltaow
+              prev_deltahw = deltahw
+
+          y_hats = self.predict(X_tr)
+          err = get_error(y_hats, y_tr)
+          self.errs.append(err/y_hats.shape[0])
+
+          if(val):
+            y_hats_val = self.predict(xval)
+            err_val = get_error(y_hats_val, yval)
+            self.errs_val.append(err_val/y_hats_val.shape[0])
+
+          if(err/y_hats.shape[0] < self.min_err):
+            self.min_err = err/y_hats.shape[0]
+            self.best_epoch = epoch
+
+          if(not self.quiet):
+            print("========Error", str(err))
+            print("========Accuracy", str(np.mean((y_hats > threshold) == y_tr)))
+            if(val):
+              print("========Validation Error", str(err_val))
+              print("========Validation Accuracy", str(np.mean((y_hats_val > threshold) == yval)))
+
+          if(prev_err - err < self.tol):
+          #record number of consecutive epochs of subthreshold improvement in error
+            no_change_count += 1
+          else:
+            no_change_count = 0
+
+          self.stop_epoch = epoch
+          self.stop_err = err/y_hats.shape[0]
+
+          if(no_change_count == self.n_epoch_no_change):
+          #Early stopping when consecutive epochs of subthreshold improvement in error reaches n_epoch_no_change
+            if(not self.quiet):
+              print("========Early stopping!========")
+
+            break
+
+          prev_err = err
+
+        self.pred = y_hats
+
+        if(not self.quiet):
+          print("============DONE====================")
+
+    
+    
+
+
+# My ANN on Disjunction of 5 Booleans
+
+# In[18]:
 
 
 #Generate combinations of possible inputs
@@ -594,6 +617,11 @@ print("Predictions")
 ann.pred
 
 
+# Importing Steinmetz Data and K-Fold splits
+
+# In[19]:
+
+
 df_tr = np.array(pd.read_csv("data_transformed_train.csv", index_col = 0))
 splits = pd.read_csv('splits10by10.csv', index_col = 0).reset_index(drop = True) - 1
 
@@ -601,11 +629,21 @@ X_train = df_tr[:,0:20]
 y_train = df_tr[:,20].reshape((X_train.shape[0],1))
 print(X_train.shape, y_train.shape)
 
+
+# In[20]:
+
+
 df_te = np.array(pd.read_csv("data_transformed_test.csv", index_col = 0))
 
 X_test = df_te[:,0:20]
 y_test = df_te[:,20].reshape((X_test.shape[0],1))
 print(X_test.shape, y_test.shape)
+
+
+# Tuning My ANN, sklearn MLPC, and SVM on Steinmetz Data
+
+# In[21]:
+
 
 def inv_squared_diff(y_true, y_pred):
     """Computes the sum of squared differences for true and predicted labels.
@@ -658,6 +696,10 @@ def read_object(name):
     fName = str(name + '.pkl')
     with open(fName, 'rb') as f:  # with statement avoids file leak
         return pickle.load(f)
+
+
+# In[20]:
+
 
 #Define parameters/distributions to tune over with RandomizedSearchCV
 n_units = [1, 3, 6, 10, 15, 20] 
@@ -722,13 +764,24 @@ save_object(searches, 'searches.pkl')
 save_object(searches_sk, 'searches_sk.pkl')
 #save_object(searches_svm, 'searches_svm.pkl')
 
+
+# In[31]:
+
+
 #searches_svm = read_object('searches_svm')
+
+
+# In[23]:
 
 
 print('My Ann')
 print(searches[0].best_params_)
 print(searches[1].best_params_)
 print(searches[2].best_params_)
+
+
+# In[87]:
+
 
 print('MLPC')
 print(searches_sk[0].best_params_)
@@ -737,10 +790,19 @@ print(searches_sk[2].best_params_)
 #-pd.concat([pd.DataFrame(searches_sk[i].cv_results_).iloc[searches_sk[i].best_index_,:] for i in range(3)], axis = 1).loc['mean_test_score',:] 
 
 
+# In[23]:
+
+
 print('SVM')
 print(searches_svm[0].best_params_)
 print(searches_svm[1].best_params_)
 print(searches_svm[2].best_params_)
+
+
+# Training with best parameters
+
+# In[24]:
+
 
 def calc_metrics(y_true, y_pred):
     """Computes confusion matrix, accuracy, precision, recall, specificity, f1-score, and AUC for true and predicted labels
@@ -788,6 +850,12 @@ def calc_metrics(y_true, y_pred):
     return((cm, {'Accuracy': [acc], 'AUC': [auc], 'Precision': [precision], 'Recall': [recall], 'Specificity': [specificity], 'F1-score': [f1]}))
 
 
+# In[32]:
+
+
+def get_classes(y_prob, threshold = .5):
+    return(np.array([1 if i > threshold else 0 for i in y_prob]))
+
 model_errs_tr = list()
 model_errs_val = list()
 model_epoch = list()
@@ -832,6 +900,9 @@ for i in range(n_iter):
     steps_svm = [('scaler', scaler), 
            ('svc', svm.SVC(kernel = tuned_params_svm['svc__kernel'], gamma = tuned_params_svm['svc__gamma'], C = tuned_params_svm['svc__C'], random_state = 123 + i)
         )]
+    steps_svm_proba = [('scaler', scaler), 
+           ('svc', svm.SVC(kernel = tuned_params_svm['svc__kernel'], gamma = tuned_params_svm['svc__gamma'], C = tuned_params_svm['svc__C'], probability = True, random_state = 123 + i)
+        )]
     
     #Initialize pipelines
     ann = Pipeline(steps_myann)
@@ -844,7 +915,7 @@ for i in range(n_iter):
     svc.fit(X_train, np.ravel(y_train))
     
     #Get predictions
-    y_hat_myann = ann.predict(X_test)
+    y_hat_myann = get_classes(ann.predict(X_test))
     y_hat_mlpc = mlpc.predict(X_test)
     y_hat_svm = svc.predict(X_test)
     
@@ -869,7 +940,7 @@ for i in range(n_iter):
         #Initialize pipelines
         ann = Pipeline(steps_myann)
         mlpc = Pipeline(steps_sk)
-        svc = Pipeline(steps_svm)
+        svc = Pipeline(steps_svm_proba)
         
         #Fit models on training data only
         ann.fit(X_train[tr_index,:], y_train[tr_index,:], my_ann__nesterov = True, my_ann__xval = X_train[val_index,:], my_ann__yval = y_train[val_index,:])
@@ -886,14 +957,14 @@ for i in range(n_iter):
         errs_val_myann.append(ann[-1].errs_val[-1])
                 
         #Errors/fold for sklearn MLPC
-        y_hat_tr_mlpc = mlpc.predict(X_train[tr_index,:])
-        y_hat_val_mlpc = mlpc.predict(X_train[val_index,:])
+        y_hat_tr_mlpc = mlpc.predict_proba(X_train[tr_index,:])
+        y_hat_val_mlpc = mlpc.predict_proba(X_train[val_index,:])
         errs_tr_mlpc.append(-inv_squared_diff(y_train[tr_index,:], y_hat_tr_mlpc))
         errs_val_mlpc.append(-inv_squared_diff(y_train[val_index,:], y_hat_val_mlpc))
         
         #Errors/fold for svm
-        y_hat_tr_svm = svc.predict(X_train[tr_index,:])
-        y_hat_val_svm = svc.predict(X_train[val_index,:])
+        y_hat_tr_svm = svc.predict_proba(X_train[tr_index,:])
+        y_hat_val_svm = svc.predict_proba(X_train[val_index,:])
         errs_tr_svm.append(-inv_squared_diff(y_train[tr_index,:], y_hat_tr_svm))
         errs_val_svm.append(-inv_squared_diff(y_train[val_index,:], y_hat_val_svm))
 
@@ -901,7 +972,13 @@ print("======================")
 print("====Done====")
 
 
+# In[33]:
+
+
 #Get mean and sd of each testing metric (over 10 models) and append those of C5.0
+scores_myanns_stats = scores_myanns.describe()
+scores_mlpcs_stats = scores_mlpcs.describe()
+scores_svms_stats = scores_svms.describe()
 scores_myanns_stats_all = pd.concat([scores_myanns_stats.iloc[1,:], scores_myanns_stats.iloc[2,:]], axis = 1)
 scores_myanns_stats_all.columns = ['MyANN_mean', 'MyANN_sd']
 scores_mlpcs_stats_all = pd.concat([scores_mlpcs_stats.iloc[1,:], scores_mlpcs_stats.iloc[2,:]], axis = 1)
@@ -930,9 +1007,20 @@ errs_mlpc_agg = errs_mlpc.agg([np.nanmean, np.nanstd])
 errs_svm_agg = errs_svm.agg([np.nanmean, np.nanstd])
 errs_agg = pd.concat([errs_myann_agg.add_suffix('_myann'), errs_mlpc_agg.add_suffix('_mlpc'), errs_svm_agg.add_suffix('_svm')], axis = 1).T
 
+
+# In[34]:
+
+
 scores_agg
 
+
+# In[70]:
+
+
 err_per_epoch_agg
+
+
+# In[85]:
 
 
 plt.figure()
@@ -945,4 +1033,8 @@ plt.plot(err_per_epoch_agg.val_error.nanmean - err_per_epoch_agg.val_error.nanst
 plt.legend()
 
 
+# In[71]:
+
+
 errs_agg
+
